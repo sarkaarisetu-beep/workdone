@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vibepedia – the whole world, explained</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌞</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+ 
+<!--
+=====================================================================
+  VIBEPEDIA – HOW TO EDIT (full guide is also in the chat reply)
+  Everything lives in this ONE file. Three parts:
+    1) <style>   → colors & looks   (see ":root" variables first)
+    2) <body>    → page skeleton
+    3) <script>  → CONFIG, DATA (all the encyclopedia text), and logic
+  Quick edits:
+    • Change site name / intro text / Wikipedia on-off → CONFIG
+    • Add a topic or article                          → DATA
+    • Change colors                                   → :root in CSS
+    • Change a topic's background animation           → "fx" in DATA
+=====================================================================
+-->
+ 
+<style>
+/* ---------- 1. THEME TOKENS (edit colors here) ---------- */
+:root{
+  --bg:#fff6e6;          /* page background  */
+  --ink:#1b1535;         /* main text        */
+  --card:#ffffff;        /* cards            */
+  --muted:#6b6385;       /* quiet text       */
+  --line:#1b1535;        /* chunky outlines  */
+  --pink:#ff5fa2;
+  --sun:#ffd23f;
+  --grape:#7c5cff;
+  --mint:#3de0a8;
+  --sky:#8fd8ff;
+  --dark:#1b1535;        /* text on bright tiles (never changes) */
+  --radius:20px;
+  --head:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16112e;--ink:#f5efff;--card:#241c47;--muted:#b3a8d9;--line:#8f7dff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16112e;--ink:#f5efff;--card:#241c47;--muted:#b3a8d9;--line:#8f7dff;
+}
+ 
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--body);font-weight:700;
+  line-height:1.5;overflow:hidden;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+:focus-visible{outline:3px solid var(--pink);outline-offset:3px;border-radius:8px}
+mark{background:var(--sun);color:var(--dark);border-radius:4px;padding:0 2px}
+ 
+/* ---------- INTRO (sunrise + birds) ---------- */
+#intro{
+  position:fixed;inset:0;z-index:100;overflow:hidden;
+  background:linear-gradient(180deg,#ff9a8b 0%,#ffcf8b 30%,#9be3ff 70%,#6cc4ff 100%);
+  background-size:100% 300%;background-position:0 100%;
+  animation:dawn 6s ease-out forwards;
+  display:grid;place-items:center;text-align:center;
+  transition:opacity .8s ease,transform .8s ease;
+}
+#intro.out{opacity:0;transform:scale(1.08);pointer-events:none}
+@keyframes dawn{to{background-position:0 0}}
+.sun{
+  position:absolute;left:50%;top:30%;width:min(34vw,220px);aspect-ratio:1;margin-left:calc(min(34vw,220px)/-2);
+  border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff7b0,#ffd23f 55%,#ffa51f);
+  box-shadow:0 0 60px 20px rgba(255,210,63,.6),0 0 160px 60px rgba(255,170,60,.35);
+  transform:translateY(70vh);animation:rise 3.2s cubic-bezier(.2,.8,.2,1) .2s forwards;
+}
+.sun::before{
+  content:"";position:absolute;inset:-90%;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,235,120,.55) 0 7deg,transparent 7deg 18deg);
+  -webkit-mask-image:radial-gradient(circle,#000 28%,transparent 62%);mask-image:radial-gradient(circle,#000 28%,transparent 62%);
+  animation:spin 24s linear infinite;
+}
+.sun::after{ /* happy face */
+  content:"◡‿◡";position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(24px,5vw,46px);color:#b3541e;opacity:.7;letter-spacing:2px;
+}
+@keyframes rise{to{transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cloud{position:absolute;background:#fff;border-radius:60px;opacity:.9;animation:cloud linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:55%;height:160%;left:12%;top:-70%}
+.cloud::after{width:40%;height:130%;right:14%;top:-45%}
+@keyframes cloud{from{transform:translateX(-30vw)}to{transform:translateX(130vw)}}
+.hills{position:absolute;left:0;right:0;bottom:0;height:26vh;pointer-events:none}
+.bwrap{position:absolute;left:0;width:48px;animation:fly linear infinite;will-change:transform}
+@keyframes fly{from{transform:translateX(-12vw) scale(var(--sc))}to{transform:translateX(112vw) scale(var(--sc))}}
+.bwrap svg{display:block;width:100%;animation:bob 1.6s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-14px)}}
+.intro-card{position:relative;z-index:5;padding:20px;margin-top:22vh}
+.intro-card h1{
+  font-family:var(--head);font-weight:700;font-size:clamp(46px,11vw,120px);line-height:.95;color:#fff;
+  text-shadow:4px 4px 0 var(--dark),8px 8px 0 var(--pink);opacity:0;transform:translateY(30px) rotate(-3deg);
+  animation:pop .9s cubic-bezier(.2,1.4,.4,1) 1.6s forwards;
+}
+.intro-card p{
+  margin-top:18px;font-family:var(--head);font-size:clamp(16px,3.2vw,26px);color:var(--dark);font-weight:600;
+  opacity:0;animation:pop .8s ease 2.3s forwards;
+}
+.intro-card .go{
+  margin-top:26px;padding:14px 30px;border-radius:999px;background:var(--dark);color:#fff;
+  font-family:var(--head);font-size:22px;border:3px solid var(--dark);box-shadow:5px 5px 0 var(--pink);
+  opacity:0;animation:pop .7s ease 3s forwards;transition:transform .15s,box-shadow .15s;
+}
+.intro-card .go:hover{transform:translate(-2px,-2px) rotate(-2deg);box-shadow:8px 8px 0 var(--pink)}
+.intro-card .go:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pink)}
+@keyframes pop{to{opacity:1;transform:none}}
+.skip{position:absolute;top:14px;right:16px;z-index:6;font-family:var(--head);font-size:15px;color:var(--dark);background:rgba(255,255,255,.7);padding:6px 14px;border-radius:99px}
+ 
+/* ---------- APP SHELL ---------- */
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:290px 1fr;grid-template-rows:auto 1fr}
+header{
+  grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:12px 18px;
+  background:var(--card);border-bottom:3px solid var(--line);position:relative;z-index:20;
+}
+.logo{font-family:var(--head);font-weight:700;font-size:28px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo .sunny{display:inline-block;animation:spin 14s linear infinite}
+.logo b{background:linear-gradient(90deg,var(--pink),var(--grape));-webkit-background-clip:text;background-clip:text;color:transparent}
+.search{position:relative;flex:1;max-width:720px;margin:0 auto}
+.search input{
+  width:100%;padding:13px 20px 13px 52px;border-radius:999px;border:3px solid var(--line);background:var(--bg);color:var(--ink);
+  font:inherit;font-size:17px;box-shadow:4px 4px 0 var(--pink);transition:box-shadow .15s,transform .15s;
+}
+.search input:focus{outline:none;box-shadow:6px 6px 0 var(--grape);transform:translate(-1px,-1px)}
+.search .mag{position:absolute;left:18px;top:50%;transform:translateY(-50%);font-size:20px;pointer-events:none}
+.search kbd{position:absolute;right:16px;top:50%;transform:translateY(-50%);font:inherit;font-size:13px;border:2px solid var(--line);border-radius:8px;padding:0 8px;color:var(--muted)}
+#sugg{
+  position:absolute;left:8px;right:8px;top:calc(100% + 10px);background:var(--card);border:3px solid var(--line);border-radius:var(--radius);
+  box-shadow:6px 6px 0 var(--line);overflow:hidden;max-height:60vh;overflow-y:auto;display:none;z-index:30;
+}
+#sugg.open{display:block}
+#sugg button{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:10px 16px;border-bottom:2px dashed rgba(127,127,160,.3)}
+#sugg button:last-child{border-bottom:0}
+#sugg button:hover,#sugg button.sel{background:var(--sun);color:var(--dark)}
+#sugg .e{font-size:24px}
+#sugg small{display:block;color:var(--muted);font-weight:700;font-size:13px}
+#sugg button:hover small,#sugg button.sel small{color:var(--dark)}
+.hbtns{display:flex;gap:8px}
+.ibtn{
+  width:46px;height:46px;border-radius:14px;border:3px solid var(--line);background:var(--card);font-size:21px;
+  box-shadow:3px 3px 0 var(--line);transition:transform .12s,box-shadow .12s;position:relative;
+}
+.ibtn:hover{transform:translate(-2px,-2px) rotate(-4deg);box-shadow:5px 5px 0 var(--line)}
+.ibtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--line)}
+.ibtn .n{position:absolute;top:-8px;right:-8px;background:var(--pink);color:#fff;border-radius:99px;font-size:12px;padding:0 6px;border:2px solid var(--line)}
+ 
+/* sidebar column */
+aside{
+  background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(6px);
+  border-right:3px solid var(--line);overflow-y:auto;padding:14px 12px 40px;
+}
+aside h2{font-family:var(--head);font-size:15px;color:var(--muted);margin:6px 8px 10px;font-weight:600}
+.navbtn{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;border-radius:14px;
+  border:3px solid transparent;font-size:15px;transition:transform .12s,background .12s;
+}
+.navbtn .e{font-size:22px;width:30px;text-align:center;transition:transform .25s}
+.navbtn .c{margin-left:auto;font-size:12px;color:var(--muted)}
+.navbtn:hover{background:color-mix(in srgb,var(--c,var(--sun)) 35%,transparent);transform:translateX(4px)}
+.navbtn:hover .e{transform:scale(1.3) rotate(-10deg)}
+.navbtn.active{background:var(--c,var(--sun));border-color:var(--line);color:var(--dark);box-shadow:3px 3px 0 var(--line)}
+.navbtn.active .c{color:var(--dark)}
+ 
+main{overflow-y:auto;padding:22px clamp(14px,3vw,36px) 80px;scroll-behavior:smooth}
+.wrap{max-width:1100px;margin:0 auto}
+ 
+/* hero */
+.hero{
+  background:var(--sun);color:var(--dark);border:3px solid var(--line);border-radius:28px;box-shadow:8px 8px 0 var(--line);
+  padding:clamp(22px,4vw,44px);position:relative;overflow:hidden;
+}
+.hero h1{font-family:var(--head);font-weight:700;font-size:clamp(32px,6vw,64px);line-height:1;max-width:14ch}
+.hero p{margin-top:12px;font-size:clamp(16px,2vw,20px);max-width:46ch}
+.hero .big{position:absolute;right:-10px;top:-10px;font-size:clamp(100px,22vw,230px);opacity:.9;animation:wob 5s ease-in-out infinite;pointer-events:none}
+@keyframes wob{50%{transform:rotate(12deg) translateY(10px)}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{
+  padding:7px 14px;border-radius:99px;border:3px solid var(--line);background:#fff;color:var(--dark);font-size:14px;
+  box-shadow:3px 3px 0 var(--line);transition:transform .12s;
+}
+.chip:hover{transform:translate(-2px,-2px) rotate(-2deg);background:var(--pink);color:#fff}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;font-family:var(--head);font-size:15px}
+.stats span{background:var(--dark);color:#fff;padding:4px 12px;border-radius:99px}
+ 
+h3.sec{font-family:var(--head);font-size:26px;margin:34px 0 14px;display:flex;align-items:center;gap:10px}
+h3.sec small{font-family:var(--body);font-size:14px;color:var(--muted)}
+ 
+/* category tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.tile{
+  background:var(--c);color:var(--dark);border:3px solid var(--line);border-radius:var(--radius);padding:16px;text-align:left;
+  box-shadow:5px 5px 0 var(--line);transition:transform .15s,box-shadow .15s;min-height:128px;display:flex;flex-direction:column;gap:4px;
+  position:relative;overflow:hidden;
+}
+.tile:hover{transform:translate(-3px,-3px) rotate(-1deg);box-shadow:9px 9px 0 var(--line)}
+.tile .e{font-size:38px;transition:transform .3s}
+.tile:hover .e{transform:scale(1.25) rotate(12deg)}
+.tile b{font-family:var(--head);font-size:19px;line-height:1.1}
+.tile small{font-size:13px;opacity:.8}
+ 
+/* category banner */
+.banner{
+  background:var(--c);color:var(--dark);border:3px solid var(--line);border-radius:28px;box-shadow:8px 8px 0 var(--line);
+  padding:clamp(20px,4vw,38px);display:flex;gap:22px;align-items:center;position:relative;overflow:hidden;
+}
+.banner .e{font-size:clamp(64px,12vw,120px);animation:bounce 2.2s ease-in-out infinite}
+@keyframes bounce{50%{transform:translateY(-14px) rotate(8deg)}}
+.banner h1{font-family:var(--head);font-size:clamp(30px,5.5vw,56px);line-height:1}
+.banner p{margin-top:8px;max-width:52ch}
+.crumb{margin-bottom:14px;font-size:14px}
+.crumb button{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+ 
+/* article cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;margin-top:26px}
+.card{
+  background:var(--card);border:3px solid var(--line);border-radius:var(--radius);padding:18px;text-align:left;
+  box-shadow:5px 5px 0 var(--c,var(--pink));display:flex;flex-direction:column;gap:8px;
+  transition:transform .15s,box-shadow .15s;animation:cardIn .5s both;position:relative;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.97)}}
+.card:hover{transform:translate(-3px,-3px);box-shadow:9px 9px 0 var(--c,var(--pink))}
+.card h4{font-family:var(--head);font-size:21px;line-height:1.15;display:flex;gap:8px;align-items:center}
+.card h4 i{font-style:normal;background:var(--c);color:var(--dark);width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:19px;flex:none;border:2px solid var(--line)}
+.card p{font-size:15px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .tag{font-size:12px;color:var(--muted);margin-top:auto}
+.star{position:absolute;top:10px;right:10px;font-size:20px;opacity:.35;transition:transform .2s,opacity .2s}
+.star:hover{transform:scale(1.4) rotate(15deg);opacity:1}
+.star.on{opacity:1}
+ 
+/* modal */
+#modal{position:fixed;inset:0;z-index:60;background:rgba(20,10,50,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}
+#modal.open{display:flex}
+.sheet{
+  width:min(720px,100%);max-height:92vh;overflow-y:auto;background:var(--card);border:3px solid var(--line);border-radius:28px;
+  box-shadow:10px 10px 0 var(--c,var(--pink));animation:sheet .45s cubic-bezier(.2,1.3,.4,1);position:relative;
+}
+@keyframes sheet{from{opacity:0;transform:scale(.8) rotate(-3deg)}}
+.sheet .top{background:var(--c);color:var(--dark);padding:26px 26px 20px;display:flex;gap:18px;align-items:center;border-bottom:3px solid var(--line)}
+.sheet .top .e{font-size:64px;animation:bounce 2s ease-in-out infinite}
+.sheet .top small{display:inline-block;background:var(--dark);color:#fff;border-radius:99px;padding:2px 12px;font-family:var(--head);font-size:13px}
+.sheet h2{font-family:var(--head);font-size:clamp(28px,5vw,42px);line-height:1.05;margin-top:4px}
+.sheet .bd{padding:22px 26px 28px;font-size:18px}
+.sheet .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn{
+  padding:10px 18px;border-radius:99px;border:3px solid var(--line);background:var(--card);box-shadow:3px 3px 0 var(--line);font-family:var(--head);font-size:16px;
+  transition:transform .12s,box-shadow .12s;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--line)}
+.btn.pri{background:var(--pink);color:#fff}
+.close{position:absolute;top:12px;right:14px;z-index:2;width:38px;height:38px;border-radius:50%;background:var(--dark);color:#fff;font-size:18px}
+.live{margin-top:20px;display:grid;gap:12px}
+.lcard{display:flex;gap:12px;padding:12px;border:3px dashed var(--line);border-radius:16px;font-size:15px}
+.lcard img{width:84px;height:84px;object-fit:cover;border-radius:12px;flex:none;border:2px solid var(--line)}
+.lcard b{font-family:var(--head);font-size:18px}
+.lcard p{font-weight:600;color:var(--muted);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.lcard a{color:var(--grape);text-decoration:underline;text-underline-offset:3px}
+.note{font-size:13px;color:var(--muted);margin-top:10px}
+.empty{text-align:center;padding:50px 10px;font-size:20px;font-family:var(--head)}
+.loading{display:inline-block;animation:spin 1s linear infinite}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 20px;border-radius:99px;z-index:90;font-family:var(--head);animation:pop .3s both}
+ 
+/* ---------- RESPONSIVE ---------- */
+@media (max-width:860px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+  header{flex-wrap:wrap;gap:10px}
+  .search{order:3;flex-basis:100%;max-width:none}
+  .search kbd{display:none}
+  .hbtns{margin-left:auto}
+  aside{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:10px;border-right:0;border-bottom:3px solid var(--line)}
+  aside h2{display:none}
+  .navbtn{width:auto;flex:none;white-space:nowrap;margin:0}
+  .navbtn .c{display:none}
+  .banner{flex-direction:column;text-align:center}
+  .hero .big{opacity:.25}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+ 
+<body>
+ 
+<!-- ============ INTRO ANIMATION ============ -->
+<div id="intro" aria-label="Welcome animation">
+  <div class="sun"></div>
+  <div class="cloud" style="top:12%;width:150px;height:38px;animation-duration:40s"></div>
+  <div class="cloud" style="top:26%;width:210px;height:48px;animation-duration:58s;animation-delay:-20s"></div>
+  <div class="cloud" style="top:48%;width:120px;height:30px;animation-duration:34s;animation-delay:-8s"></div>
+  <div id="birds"></div>
+  <svg class="hills" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 120 Q150 40 300 110 T600 100 T900 90 T1200 110 V200 H0Z" fill="#7be08a"/>
+    <path d="M0 160 Q200 90 420 150 T800 140 T1200 150 V200 H0Z" fill="#3cc47c"/>
+  </svg>
+  <button class="skip" id="skip">skip ⏭</button>
+  <div class="intro-card">
+    <h1 id="introTitle">Vibepedia</h1>
+    <p id="introSub">the whole world, explained for Gen Z &amp; Gen Alpha</p>
+    <button class="go" id="enter">Let’s go 🚀</button>
+  </div>
+</div>
+ 
+<!-- ============ APP ============ -->
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="app">
+  <header>
+    <button class="logo" id="logo" aria-label="Home"><span class="sunny">🌞</span><b id="siteName">Vibepedia</b></button>
+    <div class="search" role="search">
+      <span class="mag">🔎</span>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search anything… rizz, black holes, Roblox, Hinglish" aria-label="Search the encyclopedia">
+      <kbd>/</kbd>
+      <div id="sugg" role="listbox"></div>
+    </div>
+    <div class="hbtns">
+      <button class="ibtn" id="rand"  title="Surprise me" aria-label="Random article">🎲</button>
+      <button class="ibtn" id="saved" title="Saved articles" aria-label="Saved articles">⭐<span class="n" id="savedN" hidden>0</span></button>
+      <button class="ibtn" id="theme" title="Dark / light" aria-label="Toggle theme">🌙</button>
+      <button class="ibtn" id="replay" title="Replay intro" aria-label="Replay intro">🐦</button>
+    </div>
+  </header>
+  <aside id="nav" aria-label="Topics"></aside>
+  <main id="main"><div class="wrap" id="view"></div></main>
+</div>
+ 
+<div id="modal" aria-modal="true" role="dialog"></div>
+ 
+<script>
+/* =====================================================================
+   2. CONFIG  – the easy knobs
+   ===================================================================== */
+const CONFIG = {
+  siteName: "Vibepedia",
+  introTitle: "Vibepedia",
+  introSubtitle: "the whole world, explained for Gen Z & Gen Alpha",
+  introAutoCloseSeconds: 8,   // intro closes by itself after this many seconds
+  showIntro: true,            // false = skip the intro entirely
+  liveSearch: true,           // true = also search Wikipedia live (needs internet)
+  wikiLang: "en",             // "hi" for Hindi Wikipedia, "es" for Spanish etc.
+  wikiResults: 4,             // how many live results to show
+  suggestionLimit: 7,
+  tryChips: ["rizz","black holes","Roblox","Hinglish","how Wi-Fi works","Delhi smog","Minecraft","dreams"]
+};
+ 
+/* =====================================================================
+   3. DATA – the encyclopedia. EDIT / ADD HERE.
+   Each category:
+     id      unique short id
+     emoji   shown in the sidebar
+     name    category title
+     color   tile / accent color (keep it light-ish so dark text reads)
+     fx      background animation → float | rise | fall | bounce | drift | twinkle | orbit
+     icons   emojis used by that animation
+     blurb   one-line intro
+     items   [ "Title", "Short explanation", "optional Wikipedia search term" ]
+   ===================================================================== */
+const DATA = [
+{ id:"internet", emoji:"🌐", name:"Internet Culture", color:"#ff8fc7", fx:"float", icons:["😂","💀","🔥","📈","🧠","🐸"],
+  blurb:"How the online world makes jokes, stars and entire languages overnight.",
+  items:[
+  ["Memes","Remixable images, videos or phrases that spread online as inside jokes. They mutate as people add their own twist, so one meme can have a thousand versions.","Internet meme"],
+  ["Viral trends","Dances, formats or behaviours that explode across feeds in days because platforms push whatever gets quick reactions.","Viral phenomenon"],
+  ["Internet slang","Words born in chats and comments, like “no cap” or “rizz”, that spread fast and often fade just as fast.","Internet slang"],
+  ["Brainrot","Slang for absurd, repetitive, low-effort content that feels like it melts your attention span. Oxford picked “brain rot” as its 2024 Word of the Year.","Brain rot"],
+  ["Viral challenges","Do-it-and-post tasks like the 2014 Ice Bucket Challenge, which raised money for ALS research. Skip any challenge that could hurt you or others.","Ice Bucket Challenge"],
+  ["Internet lore","Shared backstories and running jokes that communities build over years, until everyone just ‘knows’ them.","Internet culture"],
+  ["Online communities","Forums, servers and subreddits where people bond over one interest, each with its own rules and inside jokes.","Virtual community"],
+  ["Gen Z / Gen Alpha terminology","Gen Z is roughly born 1997–2012 and Gen Alpha roughly 2010–2024 (cut-off years vary by source). Each generation’s slang signals belonging.","Generation Alpha"]
+  ]},
+{ id:"social", emoji:"📱", name:"Social Media", color:"#b79bff", fx:"float", icons:["❤️","💬","🔔","📸","👍","🎥"],
+  blurb:"Apps, algorithms and the people who make the feed go brrr.",
+  items:[
+  ["Instagram","Photo and video app launched in 2010 and now owned by Meta. Known for Stories, Reels, DMs and aesthetic feeds.","Instagram"],
+  ["TikTok","Short-video app whose ‘For You’ page picks clips from your behaviour, not just who you follow. A global hit since about 2018.","TikTok"],
+  ["YouTube","Video platform launched in 2005 and owned by Google. From tutorials and gaming to music and Shorts.","YouTube"],
+  ["Snapchat","Messaging app famous for disappearing photos, streaks and AR lenses. Launched in 2011.","Snapchat"],
+  ["Discord","Chat app of servers and voice channels, born for gamers in 2015 and now home to study groups, art clubs and fandoms.","Discord"],
+  ["Reddit","A network of topic forums called subreddits where upvotes decide what rises to the top.","Reddit"],
+  ["Social-media trends","Formats like ‘get ready with me’, photo dumps and POV skits that rotate with sounds, filters and hashtags.","Social media"],
+  ["Algorithms","Ranking recipes that guess what keeps you watching using likes, watch time, shares and more. Tip: your feed is trainable, so follow what you actually enjoy.","Algorithm"],
+  ["Influencers & creators","People who build audiences online and earn through sponsorships, ads, memberships and merch.","Social media influencer"]
+  ]},
+{ id:"gaming", emoji:"🎮", name:"Gaming", color:"#6ee7a8", fx:"fall", icons:["🎮","👾","🕹️","🏆","⚔️","💎"],
+  blurb:"Blocks, battle royales, esports and the culture around them.",
+  items:[
+  ["Minecraft","A sandbox game of blocks by Mojang (full release 2011). Survive, build, explore or make redstone machines. One of the best-selling games ever.","Minecraft"],
+  ["Roblox","A platform where players build and play millions of games made by other users, using the free Roblox Studio. Launched in 2006.","Roblox"],
+  ["Fortnite","Epic Games’ 2017 battle royale with building, seasonal stories and big live events including in-game concerts.","Fortnite"],
+  ["GTA","Grand Theft Auto is Rockstar’s open-world crime series. It is rated for adults, and GTA V is among the best-selling games of all time.","Grand Theft Auto"],
+  ["Valorant","Riot Games’ 5v5 tactical shooter (2020) that mixes precise gunplay with agent abilities.","Valorant"],
+  ["Esports","Organised competitive gaming with pro teams, coaches, leagues, huge prize pools and packed arenas.","Esports"],
+  ["Gaming slang","GG (good game), noob, GOATed, buff/nerf, clutch, sweaty, lag, ‘touch grass’.","Glossary of video game terms"],
+  ["Famous games","Pac-Man, Tetris, Super Mario, Zelda, Pokémon and Minecraft shaped what games became.","List of best-selling video games"],
+  ["Game history","From Pong (1972) and arcades to consoles, PC, mobile, cloud gaming and VR.","History of video games"],
+  ["Gaming communities","Streamers, modders, speedrunners, clans and wiki editors who keep games alive long after launch.","Gaming community"]
+  ]},
+{ id:"ai", emoji:"🤖", name:"AI & Future Tech", color:"#6fd8ff", fx:"orbit", icons:["🤖","⚡","🧪","🔮","💾","🛰️"],
+  blurb:"Chatbots, robots, reality-bending headsets and what comes next.",
+  items:[
+  ["Chatbots","Programs you talk to in plain language. Modern ones use large language models to answer, write, explain and brainstorm.","Chatbot"],
+  ["Generative AI","AI that creates new text, images, audio, code or video by learning patterns from huge amounts of training data.","Generative artificial intelligence"],
+  ["AI images/videos","Models turn a text prompt into pictures or clips. Powerful and fun, but also easy to misuse for fakes.","Text-to-image model"],
+  ["Robotics","Machines that sense, decide and move: factory arms, robot vacuums, drones, humanoids and rovers on Mars.","Robotics"],
+  ["Deepfakes","AI-made or AI-altered video and audio that imitates real people. Check sources, look for odd details, and never share unverified clips.","Deepfake"],
+  ["Virtual reality","Headsets that replace your view with a 3D world and track your head and hands so you feel inside it.","Virtual reality"],
+  ["Augmented reality","Digital objects layered over the real world through a phone or glasses, like Snapchat lenses or Pokémon GO.","Augmented reality"],
+  ["Future technology","Things being built now: fusion energy, brain-computer interfaces, quantum computers, lab-grown food. Which ones land, and when, is uncertain.","Emerging technologies"],
+  ["AI safety","Research and rules aimed at making AI reliable, fair and under human control, and at reducing misuse and bias.","AI safety"]
+  ]},
+{ id:"music", emoji:"🎵", name:"Music", color:"#ffb36b", fx:"rise", icons:["🎵","🎶","🎧","🎤","🎸","🥁"],
+  blurb:"Genres, drops, tours and how songs get made.",
+  items:[
+  ["Artists","From Beethoven to Bad Bunny, artists shape sound and culture. Many now build careers through streaming and social media.","Musician"],
+  ["Albums","Collections of songs released as one project with themes and art. Long-playing records made the album format popular.","Album"],
+  ["Genres","Pop, hip-hop, rock, EDM, K-pop, Bollywood, lo-fi and more. Most genres are blends that keep mixing.","Music genre"],
+  ["Music trends","Sped-up remixes, hyperpop, throwback revivals and snippets written for short-video feeds.","Popular music"],
+  ["Viral songs","Tracks that blow up thanks to a clip, dance or meme, sometimes decades after release, like Kate Bush’s “Running Up That Hill” in 2022.","Viral song"],
+  ["Concert culture","Tours, festivals, light-up wristbands, fan chants and friendship bracelets. Live shows are about shared energy.","Concert"],
+  ["Music production","Making songs in a DAW (digital audio workstation) like FL Studio or Ableton: recording, beats, synths, mixing and mastering.","Record producer"],
+  ["Music history","Folk songs and orchestras, then jazz, rock ’n’ roll, hip-hop, electronic music and the streaming age.","History of music"]
+  ]},
+{ id:"movies", emoji:"🎬", name:"Movies, TV & Anime", color:"#ff8f8f", fx:"twinkle", icons:["🎬","🍿","⭐","🎞️","🦸","🌸"],
+  blurb:"Stories you binge, quote and make edits of.",
+  items:[
+  ["Movies","Stories told in about two hours. Cinema began in the 1890s and now spans blockbusters, indie films and animation.","Film"],
+  ["Series","Episodic shows with ongoing arcs. Streaming made it normal to drop a whole season at once.","Television show"],
+  ["Anime","Japanese-style animation across action, romance, sports, sci-fi and slice-of-life, loved worldwide.","Anime"],
+  ["Manga","Japanese comics, traditionally read right to left. Many anime start life as manga.","Manga"],
+  ["Superheroes","Characters with powers or gadgets, from 1930s comics like Superman and Batman to today’s Marvel and DC franchises.","Superhero"],
+  ["Streaming platforms","Services like Netflix, Prime Video, Disney+ and YouTube that deliver shows and films on demand.","Streaming media"],
+  ["Fandoms","Communities that make theories, art, fanfiction, cosplay and edits around a story or star.","Fandom"],
+  ["Famous characters","Icons like Mickey Mouse, Spider-Man, Pikachu, Goku and Harry Potter feel familiar across generations.","Fictional character"],
+  ["Pop-culture moments","A surprise finale, a viral scene or a meme-able line that everybody talks about for a week.","Popular culture"]
+  ]},
+{ id:"psych", emoji:"🧠", name:"Psychology & Life", color:"#5eead4", fx:"rise", icons:["🧠","💭","💛","🫧","🌱","✨"],
+  blurb:"Feelings, friendships and brain hacks. If things feel too heavy, talk to a trusted adult or counsellor.",
+  items:[
+  ["Emotions","Signals from your brain and body about what matters. Naming a feeling (“I’m anxious”) often makes it easier to handle.","Emotion"],
+  ["Confidence","Believing you can handle what comes. It grows from small wins and practice, not from being perfect.","Self-confidence"],
+  ["Motivation","Your reason to act. Tiny goals, clear rewards and a friendly environment beat waiting for a hype moment.","Motivation"],
+  ["Friendships","Strong ones need time, honesty and support both ways. Friend groups shifting as you grow is normal.","Friendship"],
+  ["Communication","Listening, clear words and tone matter. Many fights are misunderstandings, especially in text where tone disappears.","Communication"],
+  ["Procrastination","Delaying tasks, usually to avoid uncomfortable feelings rather than from laziness. Starting for just five minutes breaks the loop.","Procrastination"],
+  ["Decision-making","Brains use shortcuts that can mislead us (biases). Listing pros and cons and sleeping on it improves choices.","Decision-making"],
+  ["Social behavior","Humans copy groups, seek belonging and care about status. Knowing this helps you handle peer pressure.","Social psychology"],
+  ["Digital wellbeing","Healthy screen habits: notification limits, sleep before scrolling, and curating feeds that make you feel good.","Digital wellbeing"]
+  ]},
+{ id:"coding", emoji:"💻", name:"Coding & Digital Skills", color:"#c6f26b", fx:"fall", icons:["💻","</>","{ }","🐛","⌨️","0️⃣"],
+  blurb:"Build websites, apps and stay safe online.",
+  items:[
+  ["HTML/CSS/JavaScript","The web’s trio: HTML is structure, CSS is style, JavaScript is behaviour. This very site uses all three.","HTML"],
+  ["Programming","Giving computers step-by-step instructions in languages like Python, JavaScript, Java or C++. Logic and practice matter most.","Computer programming"],
+  ["Websites","Pages served over the internet. Your browser requests files, a server replies, the browser draws the page.","Website"],
+  ["Apps","Software for phones and computers, built with tools like Swift, Kotlin, Flutter or the web itself.","Mobile app"],
+  ["Cybersecurity","Protecting accounts and data. Use unique passwords, a password manager and 2-factor login, and beware of phishing links.","Computer security"],
+  ["GitHub","A site for storing code with Git version control, collaborating, and showing off your projects. Free to start.","GitHub"],
+  ["Digital tools","Code editors like VS Code, design tools like Figma, AI assistants and no-code builders that speed up making things.","Visual Studio Code"],
+  ["Tech careers","Developer, designer, data scientist, security analyst, game developer and more. A portfolio of real projects counts a lot.","Software engineering"]
+  ]},
+{ id:"money", emoji:"💸", name:"Money & Business", color:"#ffd34d", fx:"fall", icons:["💸","🪙","💰","📈","🛍️","💡"],
+  blurb:"Learn money basics early. This is general education, not financial advice.",
+  items:[
+  ["Saving","Keep part of what you receive before spending. Small regular amounts grow into an emergency cushion.","Saving"],
+  ["Budgeting","A plan for your money: needs, wants and savings. The 50/30/20 rule is one simple starting template.","Budget"],
+  ["Entrepreneurship","Spotting a problem and building something people will pay for. It involves risk, learning and plenty of trial and error.","Entrepreneurship"],
+  ["Startups","Young companies built to grow fast, often funded by investors. Many fail, a few become giants.","Startup company"],
+  ["E-commerce","Buying and selling online through marketplaces, Shopify-style stores or social shops.","E-commerce"],
+  ["Investing basics","Putting money into assets like stocks or funds hoping they grow. Time, diversification and low fees matter, and values can fall as well as rise.","Investment"],
+  ["Marketing","Getting people to notice and want a product: storytelling, social content, SEO, ads and understanding your audience.","Marketing"],
+  ["Freelancing","Working project by project for clients (design, writing, coding, editing). You manage your own time, pricing and taxes.","Freelancer"],
+  ["Personal finance","The whole money picture: earning, saving, spending, borrowing, insurance, taxes and long-term security.","Personal finance"]
+  ]},
+{ id:"fashion", emoji:"👟", name:"Fashion & Lifestyle", color:"#ff9ad5", fx:"drift", icons:["👟","🧢","🕶️","👜","🧥","✨"],
+  blurb:"Fits, kicks, aesthetics and how you make your space yours.",
+  items:[
+  ["Streetwear","Casual fashion rooted in skate, hip-hop and sneaker culture: hoodies, tees, caps and limited drops.","Streetwear"],
+  ["Sneakers","Shoes that became culture. Collectors chase limited releases, and resale markets exist for rare pairs.","Sneaker collecting"],
+  ["Fashion trends","Styles cycle, and looks from Y2K or the 90s keep returning, faster now thanks to social media.","Fashion trend"],
+  ["Aesthetics","Named visual vibes like cottagecore, dark academia, Y2K, clean girl or grunge.","Aesthetic"],
+  ["Accessories","Bags, watches, jewellery, caps, sunglasses and phone charms. Small items that finish a look.","Fashion accessory"],
+  ["Room setups","Personal spaces with LED lights, posters, desk gear and plants. Room tours are popular content.","Interior design"],
+  ["Lifestyle trends","Thrifting, journaling, matcha, walking clubs and slow-living routines.","Lifestyle (sociology)"]
+  ]},
+{ id:"sports", emoji:"⚽", name:"Sports", color:"#6cb4ff", fx:"bounce", icons:["⚽","🏀","🏏","🏎️","🏅","🎾"],
+  blurb:"Teams, legends and the culture of cheering together.",
+  items:[
+  ["Football","The world’s most popular sport (called soccer in some countries). Two teams of 11, and the FIFA World Cup every four years.","Association football"],
+  ["Cricket","Bat-and-ball sport played as Tests, ODIs and T20s. Hugely popular in India, where the IPL is a major league.","Cricket"],
+  ["Basketball","Invented in 1891 by James Naismith. A fast game of dribbling and shooting hoops, with the NBA as its top league.","Basketball"],
+  ["F1","Formula 1 is the top level of single-seater racing. Teams build cutting-edge cars and race around the world.","Formula One"],
+  ["Esports","Pro video-game competition with trained teams, coaches and big tournaments.","Esports"],
+  ["Olympics","A global multi-sport event every four years (summer and winter), rooted in ancient Greece and revived in 1896.","Olympic Games"],
+  ["Athletes","Stars like Lionel Messi, Serena Williams, LeBron James, Neeraj Chopra and Virat Kohli inspire fans worldwide.","Athlete"],
+  ["Teams","Clubs and national sides that build fan identity: Real Madrid, Mumbai Indians, the Lakers, Ferrari, Team India.","Sports team"],
+  ["Sports culture","Chants, rivalries, fantasy leagues, jerseys and memes. Fans feel part of something bigger.","Sport"]
+  ]},
+{ id:"world", emoji:"🌍", name:"World & Society", color:"#a5a8ff", fx:"orbit", icons:["🌍","🗺️","🏛️","🕊️","📰","🧭"],
+  blurb:"Countries, history and how people live together. For the latest news, always use Live search and compare several sources.",
+  items:[
+  ["Countries","There are 193 UN member states, each with its own history, government, languages and traditions.","List of sovereign states"],
+  ["Cultures","Shared food, festivals, languages, clothing and values. Learning about others builds empathy.","Culture"],
+  ["Current events","News changes daily, so this page can’t be live. Use the Live search below the results and compare trustworthy sources.","News"],
+  ["Important historical events","The farming revolution, the Industrial Revolution, the World Wars, independence movements, the Moon landing and the rise of the internet.","History of the world"],
+  ["Politics explained simply","Politics is how groups decide things and share power. Governments make laws, and in democracies citizens vote and speak up.","Politics"],
+  ["Social movements","Groups organising for change, like civil rights, women’s suffrage, India’s independence movement and climate activism.","Social movement"],
+  ["Famous people","Leaders, scientists, artists and thinkers like Mahatma Gandhi, Marie Curie, Albert Einstein, Malala Yousafzai and Nelson Mandela.","Biography"]
+  ]},
+{ id:"science", emoji:"🔬", name:"Science Made Interesting", color:"#d6a5ff", fx:"rise", icons:["🔬","🧪","🦖","🪐","🦠","⚗️"],
+  blurb:"Weird, wild and totally real facts.",
+  items:[
+  ["Space","Everything beyond Earth’s atmosphere. The universe is about 13.8 billion years old with billions of galaxies.","Outer space"],
+  ["Dinosaurs","Reptiles that ruled land for about 165 million years until roughly 66 million years ago. Birds are their living descendants.","Dinosaur"],
+  ["Human body","Tens of trillions of cells organised into systems. Your heart beats around 100,000 times a day.","Human body"],
+  ["Animals","Millions of species. Octopuses have three hearts and some crows use tools.","Animal"],
+  ["Physics","The science of matter, energy, motion and forces. It explains why a ball falls and how a phone works.","Physics"],
+  ["Chemistry","Atoms, molecules and reactions. Cooking, soap and batteries are chemistry in action.","Chemistry"],
+  ["Biology","The study of living things, from tiny cells to whole ecosystems.","Biology"],
+  ["Weird science","Sealed honey can last thousands of years, bananas are very slightly radioactive, and wombats make cube-shaped poop.","Honey"],
+  ["“How does this work?”","Pick a gadget, ask what happens inside, break it into parts and follow the energy and information through them.","Science"]
+  ]},
+{ id:"school", emoji:"📖", name:"School & Student Life", color:"#ffcf6b", fx:"drift", icons:["📖","✏️","🎒","📝","🎓","💡"],
+  blurb:"Study smarter, stress less.",
+  items:[
+  ["Study techniques","Active recall (testing yourself) and spaced repetition beat rereading. Pomodoro sessions and teaching a friend also help.","Active recall"],
+  ["Exams","Plan backwards from the date, practise past papers and sleep well. Stress is normal and manageable.","Test (assessment)"],
+  ["Careers","Explore interests, try internships and talk to people. Careers can zigzag, and skills transfer.","Career"],
+  ["College","Higher education means choosing a course, campus and budget. Entrance exams such as JEE, NEET, CUET or SAT depend on the country and course.","College"],
+  ["Scholarships","Money for study based on merit, need or talent. Use official portals, track deadlines, and never pay to ‘win’ one.","Scholarship"],
+  ["Student terminology","GPA/CGPA, syllabus, credits, majors, internships, backlogs and attendance requirements.","Academic degree"],
+  ["School culture","Houses, assemblies, clubs, sports days and farewells. Friends and teachers shape the experience.","School"],
+  ["Productivity","Prioritise, do one task at a time, keep the phone away, take breaks and plan tomorrow tonight.","Productivity"]
+  ]},
+{ id:"mystery", emoji:"🕵️", name:"Internet Mysteries & Lore", color:"#9d8cff", fx:"twinkle", icons:["🕵️","👁️","🔦","❓","🌙","🧩"],
+  blurb:"Rabbit holes, riddles and legends from the web.",
+  items:[
+  ["Famous internet mysteries","Cicada 3301 was a series of online cryptographic puzzles that began in 2012 and still fascinates puzzle fans.","Cicada 3301"],
+  ["Lost media","Films, shows or songs that vanished or aren’t publicly available. Communities hunt to rediscover them.","Lost media"],
+  ["ARGs","Alternate reality games blend real-world and online clues. Players team up to solve puzzles, like in The Beast (2001), which promoted the film A.I.","Alternate reality game"],
+  ["Unexplained phenomena","Things science hasn’t fully explained, like the 1977 Wow! signal. Many mysteries have natural explanations.","Wow! signal"],
+  ["Internet legends","Creepypasta and online urban legends, like Slender Man, created in 2009 for a photo-editing contest on a forum.","Creepypasta"],
+  ["Famous memes’ origins","Rickrolling (2007) was a bait-and-switch link prank, Doge started as a Shiba Inu photo, and Distracted Boyfriend was a stock photo.","Rickrolling"],
+  ["Digital rabbit holes","Click-chains through Wikipedia or YouTube that eat hours. Fun, but set a timer.","Information overload"]
+  ]},
+{ id:"language", emoji:"🗣️", name:"Language", color:"#ffa9a0", fx:"drift", icons:["🗣️","💬","🔤","😭","💀","🌐"],
+  blurb:"Slang, emoji and words that crossed oceans.",
+  items:[
+  ["Slang","Informal words used by a group. “Rizz” (charisma) was Oxford’s Word of the Year for 2023.","Slang"],
+  ["Acronyms","Shortened phrases like LOL, BRB, IDK, FOMO, GOAT, TBH and ASAP.","Acronym"],
+  ["Texting abbreviations","ngl (not gonna lie), fr (for real), ikr (I know, right), tbh and idc. Usage varies by community.","SMS language"],
+  ["Emoji meanings","😭 often means laughing hard and 💀 means ‘I’m dead (from laughing)’. Meanings shift by group, context and age.","Emoji"],
+  ["Meme vocabulary","Terms like ‘ratio’, ‘POV’, ‘NPC’, ‘main character energy’ and ‘delulu’.","Internet slang"],
+  ["New words","Dictionaries add words every year. “Selfie”, “emoji” and “doomscrolling” all made it in.","Neologism"],
+  ["Words borrowed from different cultures","English borrowed ‘pyjamas’ and ‘shampoo’ from Hindi-Urdu, ‘karaoke’ and ‘tsunami’ from Japanese, and ‘safari’ via Swahili.","Loanword"]
+  ]},
+{ id:"india", emoji:"🇮🇳", name:"Gen Z / Alpha India", color:"#ff9f5a", fx:"float", icons:["🇮🇳","🏏","🎬","🛺","🍵","🪁"],
+  blurb:"Desi internet, Hinglish and everything between boards and bhaiya.",
+  items:[
+  ["Indian internet culture","A mix of regional languages, reels, jugaad hacks, cricket talk and festivals, from one of the world’s biggest internet audiences.","Internet in India"],
+  ["Indian memes","Bollywood dialogues, cricket jokes, famous movie templates and relatable desi-parent humour.","Internet meme"],
+  ["Hinglish","Hindi and English mixed in the same sentence. It’s everywhere in ads, songs, reels and daily chat.","Hinglish"],
+  ["Indian creators","Comedians, techies, gamers, educators and musicians reaching millions on YouTube and Instagram in many languages.","YouTuber"],
+  ["Indian gaming","A mobile-first scene with titles like BGMI and Free Fire MAX, plus a growing esports and streaming community.","Esports in India"],
+  ["Bollywood","The Hindi-language film industry based in Mumbai, famous for music, dance and big stories. It’s part of wider Indian cinema.","Bollywood"],
+  ["Cricket culture","More festival than sport: IPL nights, World Cup watch parties, street cricket and legendary players.","Cricket in India"],
+  ["Indian student life","Board exams, entrance tests, coaching classes, tiffin boxes, hostel life and chai breaks.","Education in India"],
+  ["Indian slang","Words like yaar, jugaad, timepass, bindaas and ‘scene’ vary a lot by region and city.","Indian English"]
+  ]},
+{ id:"body", emoji:"🫀", name:"Human Body", color:"#ff8fa3", fx:"float", icons:["🫀","🧠","🦴","🫁","👀","💪"],
+  blurb:"Your built-in operating system. For health worries, ask a doctor.",
+  items:[
+  ["How the brain works","About 86 billion neurons send electrical and chemical signals through trillions of connections, running your thoughts, movement and feelings.","Human brain"],
+  ["Memory and learning","The brain strengthens connections between neurons when you repeat or use information. Sleep helps lock memories in.","Memory"],
+  ["Why we dream","Dreams mostly happen in REM sleep. Theories include memory processing, emotional regulation and random brain activity; there’s no single answer yet.","Dream"],
+  ["Why we get tired","Energy use, sleep-pressure chemicals like adenosine, your body clock and mental effort all play a part.","Fatigue"],
+  ["Sleep cycles","Roughly 90-minute loops of light, deep and REM sleep repeat through the night. Teens usually need about 8–10 hours.","Sleep"],
+  ["Puberty and growth","Hormones trigger growth spurts and body changes, usually starting between about 8 and 14. Everyone’s timeline differs, and that’s normal.","Puberty"],
+  ["Muscles and recovery","Exercise causes microscopic damage; muscles rebuild stronger with rest, protein and sleep.","Muscle"],
+  ["How the immune system works","White blood cells, antibodies and barriers like skin recognise and fight germs. Memory cells remember past invaders.","Immune system"],
+  ["Why we get sick","Germs like viruses and bacteria infect us, or body systems malfunction. Handwashing and vaccines reduce the risk.","Infection"],
+  ["How hormones work","Chemical messengers made by glands travel through the blood and tell organs what to do.","Hormone"]
+  ]},
+{ id:"physics", emoji:"🍎", name:"Everyday Physics", color:"#8fe388", fx:"orbit", icons:["🍎","⚡","📡","🧲","💡","🌀"],
+  blurb:"The hidden science inside the stuff you use daily.",
+  items:[
+  ["How Wi-Fi works","A router turns data into radio waves (often 2.4, 5 or 6 GHz) that your device picks up and decodes.","Wi-Fi"],
+  ["How Bluetooth works","Short-range radio around 2.4 GHz that hops between channels to link nearby devices using little power.","Bluetooth"],
+  ["How GPS works","Your phone listens to signals from several satellites. Tiny time delays reveal distance, and with enough satellites it computes where you are.","Global Positioning System"],
+  ["How touchscreens detect fingers","Capacitive screens sense the tiny change in electric field when your conductive finger touches the glass.","Touchscreen"],
+  ["How noise-cancelling headphones work","Microphones hear outside sound and the speakers play an opposite wave that cancels it out (destructive interference).","Active noise control"],
+  ["Why planes fly","Wings are shaped and angled so moving air pushes the plane up (lift), while engines push it forward.","Lift (force)"],
+  ["How elevators work","Cabins hang from steel ropes over a motor-driven pulley, balanced by a counterweight, with safety brakes on the rails.","Elevator"],
+  ["Why mirrors reflect","A smooth shiny metal layer bounces light at the same angle it arrives, forming a clear image.","Mirror"],
+  ["Why things float","Buoyancy: a fluid pushes up with a force equal to the weight of fluid displaced. Lower average density means floating.","Buoyancy"],
+  ["How electricity reaches your home","Power plants generate it, transformers raise the voltage for long-distance lines, then lower it again at substations and poles near you.","Electric power transmission"]
+  ]},
+{ id:"techai", emoji:"🔌", name:"Technology & AI: How it works", color:"#8ed6ff", fx:"twinkle", icons:["🔌","🧮","🔐","📶","🤖","💽"],
+  blurb:"Open the black box on the tech you use all day.",
+  items:[
+  ["How AI actually works","Software learns patterns from lots of examples by adjusting millions of numbers (parameters) until its predictions get better.","Machine learning"],
+  ["What neural networks are","Layers of simple math units loosely inspired by brain neurons. Data flows through, and training tunes the connections.","Neural network"],
+  ["How ChatGPT-like systems generate text","Large language models repeatedly predict the next token (a piece of a word) using patterns learned from huge text datasets.","Large language model"],
+  ["How image generators work","Many use diffusion: start from noise and remove it step by step, guided by your text prompt, until a picture appears.","Diffusion model"],
+  ["What algorithms are","Step-by-step instructions to solve a problem, like a recipe. From sorting a list to finding the shortest route.","Algorithm"],
+  ["How facial recognition works","A face is turned into numbers and compared with stored ones. It can make mistakes and raises privacy concerns.","Facial recognition system"],
+  ["How recommendation algorithms work","Systems predict what you’ll like from your clicks, watch time and what similar users enjoyed.","Recommender system"],
+  ["What quantum computing is","Computers using qubits, which can be in combinations of 0 and 1. They may excel at certain special problems, but won’t replace laptops.","Quantum computing"],
+  ["How encryption works","Math scrambles data so only someone with the right key can read it. It protects HTTPS sites, messaging apps and passwords.","Encryption"],
+  ["How computers store information","Everything is bits (0 and 1), stored as electric charge in SSDs, magnetic patterns on hard disks, or temporarily in RAM.","Computer data storage"]
+  ]},
+{ id:"earth", emoji:"🌳", name:"Earth & Environment", color:"#9be28f", fx:"drift", icons:["🌍","🌳","💧","🌋","☁️","♻️"],
+  blurb:"Our home planet and how we keep it livable.",
+  items:[
+  ["Climate change","Long-term warming driven mainly by burning fossil fuels, raising temperatures and sea levels and increasing extreme weather risks.","Climate change"],
+  ["Greenhouse effect","Gases like CO₂ and methane trap heat. The natural effect keeps Earth habitable, but extra gases warm it more.","Greenhouse effect"],
+  ["Air pollution","Tiny particles (PM2.5), ozone and gases from vehicles, industry and burning harm lungs and hearts.","Air pollution"],
+  ["Why Delhi gets smog","In winter, cool still air traps pollution from vehicles, dust, industry and nearby crop-residue burning, and low wind keeps it from clearing.","Air pollution in Delhi"],
+  ["Water purification","Filtering, settling, chlorine, UV or boiling remove dirt and germs. RO (reverse osmosis) also removes dissolved salts.","Water purification"],
+  ["Groundwater","Water stored underground in soil and rock. Wells tap it, and overuse can drop water tables, a big issue in parts of India.","Groundwater"],
+  ["Earthquakes","Tectonic plates that were stuck suddenly slip, releasing energy as seismic waves. Magnitude measures the size.","Earthquake"],
+  ["Volcanoes","Vents where magma, ash and gas escape. They form mostly at plate boundaries and hotspots.","Volcano"],
+  ["Weather and monsoons","Weather is the atmosphere day to day. The South Asian monsoon is a seasonal wind reversal bringing heavy rain roughly from June to September.","Monsoon"],
+  ["Renewable energy","Power from sources that replenish themselves: sun, wind, water and geothermal heat.","Renewable energy"],
+  ["Plastic pollution","Plastic lasts for hundreds of years and breaks into microplastics. Reduce, reuse, recycle and dispose of it properly.","Plastic pollution"]
+  ]},
+{ id:"bio", emoji:"🧬", name:"Biology", color:"#8bb8ff", fx:"rise", icons:["🧬","🦠","🌱","🔬","🐛","🍃"],
+  blurb:"Life, from a single cell to a rainforest.",
+  items:[
+  ["DNA","A double-helix molecule that stores instructions for building and running living things, written with four bases: A, T, C and G.","DNA"],
+  ["Genes","Segments of DNA that code for proteins. Humans have about 20,000 protein-coding genes.","Gene"],
+  ["Evolution","Populations change over generations through natural selection: traits that help survival become more common.","Evolution"],
+  ["Cells","The basic units of life. Your body has trillions, while some organisms are a single cell.","Cell (biology)"],
+  ["Viruses vs bacteria","Bacteria are living single cells, mostly harmless, and antibiotics can treat harmful ones. Viruses are tiny particles that need host cells, and antibiotics don’t work on them.","Virus"],
+  ["Vaccines","They show your immune system a harmless piece or weakened form of a germ so it can respond fast later.","Vaccine"],
+  ["Genetics and inheritance","You get half your DNA from each parent. Traits depend on gene versions plus environment.","Heredity"],
+  ["Microbiomes","Trillions of microbes in your gut and on your skin help with digestion and immunity.","Microbiome"],
+  ["Photosynthesis","Plants use sunlight, water and CO₂ to make sugar and release oxygen.","Photosynthesis"],
+  ["Ecosystems","Communities of living things and their environment, linked by food webs and nutrient cycles.","Ecosystem"]
+  ]},
+{ id:"space", emoji:"🚀", name:"Space", color:"#a29bff", fx:"twinkle", icons:["🚀","🪐","⭐","🌌","🛰️","☄️"],
+  blurb:"The biggest playground there is.",
+  items:[
+  ["How rockets work","They burn fuel and throw gas downward, so by Newton’s third law the rocket goes up. Reaching orbit needs about 7.8 km/s sideways speed.","Rocket"],
+  ["How satellites work","Objects that keep falling around Earth without hitting it. They provide GPS, internet and weather images.","Satellite"],
+  ["Black holes","Regions where gravity is so strong that not even light escapes. The first image of one (in galaxy M87) was released in 2019.","Black hole"],
+  ["Neutron stars","Collapsed star cores so dense that a teaspoon would weigh billions of tons. Some spin as pulsars.","Neutron star"],
+  ["Exoplanets","Planets orbiting other stars. More than 5,000 have been confirmed.","Exoplanet"],
+  ["The Big Bang","The leading theory that the universe expanded from an extremely hot, dense state about 13.8 billion years ago, and is still expanding.","Big Bang"],
+  ["Why astronauts float","They’re in constant free fall around Earth, along with their station. Gravity is still acting on them.","Weightlessness"],
+  ["Space stations","Orbiting labs like the ISS (first module launched 1998, continuously crewed since 2000) and China’s Tiangong.","International Space Station"],
+  ["Solar storms","Eruptions from the Sun, like flares and CMEs, make auroras and can disturb satellites, radios and power grids.","Solar storm"],
+  ["Possibility of life elsewhere","No confirmed alien life yet. Scientists look for water and chemistry on Mars, Europa, Enceladus and exoplanets.","Extraterrestrial life"]
+  ]},
+{ id:"energy", emoji:"⚡", name:"Energy", color:"#ffc857", fx:"bounce", icons:["⚡","🔋","☀️","💨","🔥","🚗"],
+  blurb:"What powers phones, cities and the future.",
+  items:[
+  ["Batteries","They store energy chemically. Ions move between electrodes through an electrolyte as current flows. Lithium-ion powers phones and EVs.","Battery (electricity)"],
+  ["Solar panels","Silicon solar cells turn sunlight directly into electricity using the photovoltaic effect.","Solar panel"],
+  ["Electricity","The flow of charged particles (electrons) through a conductor, measured in volts, amps and watts.","Electricity"],
+  ["Nuclear energy","Splitting heavy atoms (fission) releases heat that makes steam and electricity with very low CO₂ emissions. Waste and safety need careful management.","Nuclear power"],
+  ["Hydrogen energy","Hydrogen can be a clean fuel that makes only water in a fuel cell. Producing it cleanly (green hydrogen) is the challenge.","Hydrogen economy"],
+  ["Fossil fuels","Coal, oil and gas formed from ancient organisms. They’re still major energy sources but release CO₂ when burned.","Fossil fuel"],
+  ["Electric vehicles","Cars with battery-powered motors: no tailpipe emissions and very efficient. Overall impact depends on how the electricity is made.","Electric vehicle"],
+  ["Energy storage","Batteries, pumped hydro, heat storage and hydrogen save power for when the sun isn’t shining or the wind isn’t blowing.","Energy storage"]
+  ]}
+];
+ 
+/* =====================================================================
+   4. ENGINE – you normally don't need to touch below this line
+   ===================================================================== */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ 
+/* safe storage (works even if the browser blocks localStorage) */
+const mem = {};
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return k in mem?mem[k]:d; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+ 
+/* flatten data for search */
+const CATS = Object.fromEntries(DATA.map(c => [c.id,c]));
+const ALL = DATA.flatMap(c => c.items.map((it,i) => ({id:c.id+":"+i, cat:c, title:it[0], text:it[1], wiki:it[2]||it[0]})));
+const BYID = Object.fromEntries(ALL.map(a => [a.id,a]));
+ 
+let state = { view:"home", cat:null, q:"" };
+let saved = new Set(store.get("vibe-saved", []));
+ 
+/* ---------- toast ---------- */
+function toast(msg){
+  const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1800);
+}
+ 
+/* ---------- topic animation engine (canvas emoji particles) ---------- */
+const fx = { cv:$("#fx"), ctx:$("#fx").getContext("2d"), parts:[], bursts:[], mode:"float", icons:["✨"], raf:0, W:0, H:0 };
+function sizeFx(){
+  const d=Math.min(devicePixelRatio||1,2);
+  fx.W=innerWidth; fx.H=innerHeight;
+  fx.cv.width=fx.W*d; fx.cv.height=fx.H*d;
+  fx.ctx.setTransform(d,0,0,d,0,0);
+}
+addEventListener("resize",sizeFx); sizeFx();
+ 
+function mk(init){
+  const {W,H}=fx;
+  const p={e:pick(fx.icons),s:rnd(20,46),x:rnd(0,W),y:rnd(0,H),ph:rnd(0,6.28),a:rnd(.2,.45),r:0,vr:rnd(-.02,.02),vx:0,vy:0,ang:rnd(0,6.28),rad:rnd(90,Math.min(W,H)*.55),sp:rnd(.002,.006)};
+  switch(fx.mode){
+    case "float": p.vy=-rnd(.25,.9); if(!init)p.y=H+60; break;
+    case "rise":  p.vy=-rnd(.7,1.6); if(!init)p.y=H+60; break;
+    case "fall":  p.vy=rnd(.7,2);    if(!init)p.y=-60;  break;
+    case "bounce":p.vx=rnd(-1.6,1.6);p.vy=rnd(-7,0); break;
+    case "drift": p.vx=rnd(.3,1);    if(!init)p.x=-60;  break;
+    case "twinkle":p.a=0; break;
+  }
+  return p;
+}
+function setFx(mode, icons){
+  fx.mode=mode; fx.icons=icons; fx.parts=[];
+  const n = reduce ? 0 : (innerWidth<700 ? 14 : 30);
+  for(let i=0;i<n;i++) fx.parts.push(mk(true));
+  if(!fx.raf) loopFx();
+}
+function stepFx(p){
+  const {W,H}=fx; p.ph+=.02; p.r+=p.vr;
+  switch(fx.mode){
+    case "float": case "rise": p.y+=p.vy; p.x+=Math.sin(p.ph)*.6; if(p.y<-70) Object.assign(p,mk(false)); break;
+    case "fall": p.y+=p.vy; p.x+=Math.sin(p.ph)*.3; if(p.y>H+70) Object.assign(p,mk(false)); break;
+    case "bounce": p.vy+=.2; p.y+=p.vy; p.x+=p.vx;
+      if(p.y>H-p.s){ p.y=H-p.s; p.vy*=-.85; if(Math.abs(p.vy)<2.5) p.vy=-rnd(9,15); }
+      if(p.x<-40) p.x=W+40; if(p.x>W+40) p.x=-40; break;
+    case "drift": p.x+=p.vx; p.y+=Math.sin(p.ph)*.7; if(p.x>W+70) Object.assign(p,mk(false)); break;
+    case "twinkle": p.a=.08+.42*Math.abs(Math.sin(p.ph*.6)); break;
+    case "orbit": p.ang+=p.sp; p.x=W/2+Math.cos(p.ang)*p.rad*1.25; p.y=H/2+Math.sin(p.ang)*p.rad*.65; break;
+  }
+}
+function loopFx(){
+  fx.raf=requestAnimationFrame(loopFx);
+  const {ctx,W,H}=fx; ctx.clearRect(0,0,W,H);
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const p of fx.parts){
+    stepFx(p);
+    ctx.save(); ctx.globalAlpha=p.a; ctx.translate(p.x,p.y); ctx.rotate(p.r);
+    ctx.font=`${p.s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillText(p.e,0,0); ctx.restore();
+  }
+  for(let i=fx.bursts.length-1;i>=0;i--){
+    const b=fx.bursts[i]; b.vy+=.35; b.x+=b.vx; b.y+=b.vy; b.r+=b.vr; b.life--;
+    if(b.life<=0){ fx.bursts.splice(i,1); continue; }
+    ctx.save(); ctx.globalAlpha=Math.min(1,b.life/25); ctx.translate(b.x,b.y); ctx.rotate(b.r);
+    ctx.font=`${b.s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillText(b.e,0,0); ctx.restore();
+  }
+}
+function burst(x,y,icons){
+  if(reduce) return;
+  for(let i=0;i<26;i++){
+    const a=rnd(0,6.28), v=rnd(4,12);
+    fx.bursts.push({e:pick(icons),x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-5,r:0,vr:rnd(-.3,.3),s:rnd(20,38),life:rnd(45,80)});
+  }
+}
+ 
+/* ---------- intro: sunrise + birds ---------- */
+function birdSVG(){
+  const off=-rnd(0,.6).toFixed(2)+"s";
+  return `<svg viewBox="0 0 60 30" aria-hidden="true"><path fill="none" stroke="#1b1535" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M2 14 Q16 -4 30 16 Q44 -4 58 14">
+    <animate attributeName="d" dur=".7s" begin="${off}" repeatCount="indefinite"
+      values="M2 14 Q16 -4 30 16 Q44 -4 58 14;M2 6 Q16 24 30 16 Q44 24 58 6;M2 14 Q16 -4 30 16 Q44 -4 58 14"/></path></svg>`;
+}
+function buildBirds(){
+  const box=$("#birds"); box.innerHTML="";
+  const n = innerWidth<700 ? 10 : 18;
+  for(let i=0;i<n;i++){
+    const d=document.createElement("div"); d.className="bwrap";
+    d.style.cssText=`top:${rnd(6,62)}%;--sc:${rnd(.6,1.6).toFixed(2)};animation-duration:${rnd(6,13).toFixed(1)}s;animation-delay:${rnd(-4,3).toFixed(1)}s`;
+    d.innerHTML=birdSVG(); box.appendChild(d);
+  }
+}
+let introTimer;
+function playIntro(){
+  const el=$("#intro");
+  $("#introTitle").textContent=CONFIG.introTitle; $("#introSub").textContent=CONFIG.introSubtitle;
+  el.style.display="grid"; el.classList.remove("out");
+  // restart CSS animations
+  $$("#intro .sun,#intro .intro-card h1,#intro .intro-card p,#intro .go").forEach(n=>{n.style.animation="none";n.offsetHeight;n.style.animation="";});
+  el.style.animation="none"; el.offsetHeight; el.style.animation="";
+  buildBirds();
+  clearTimeout(introTimer);
+  introTimer=setTimeout(closeIntro, CONFIG.introAutoCloseSeconds*1000);
+}
+function closeIntro(){
+  clearTimeout(introTimer);
+  const el=$("#intro"); el.classList.add("out");
+  setTimeout(()=>{ el.style.display="none"; },850);
+  setTimeout(()=>burst(innerWidth/2,innerHeight/3,["🌞","✨","🐦","🎉"]),500);
+}
+ 
+/* ---------- sidebar ---------- */
+function renderNav(){
+  $("#nav").innerHTML = `<h2>TOPICS</h2>
+    <button class="navbtn ${state.view==='home'?'active':''}" data-go="home" style="--c:var(--sun)"><span class="e">🏠</span>Home<span class="c">${DATA.length}</span></button>`
+    + DATA.map(c=>`<button class="navbtn ${state.cat===c.id&&state.view==='cat'?'active':''}" data-cat="${c.id}" style="--c:${c.color}">
+        <span class="e">${c.emoji}</span>${esc(c.name)}<span class="c">${c.items.length}</span></button>`).join("");
+}
+$("#nav").addEventListener("click",e=>{
+  const b=e.target.closest(".navbtn"); if(!b) return;
+  if(b.dataset.go==="home") goHome(); else openCategory(b.dataset.cat);
+});
+ 
+/* ---------- views ---------- */
+const view=$("#view"), main=$("#main");
+function setView(html){ view.innerHTML=html; main.scrollTo({top:0,behavior:"auto"}); }
+ 
+function goHome(){
+  state={view:"home",cat:null,q:""}; $("#q").value="";
+  setFx("float",["🌞","✨","🐦","🌈","💡","🎈","🧠","🎮"]);
+  renderNav();
+  const total=ALL.length;
+  setView(`
+    <section class="hero">
+      <div class="big">🌞</div>
+      <h1>What do you wanna know today?</h1>
+      <p>${DATA.length} topics, ${total}+ explainers, and a live link to the whole world’s knowledge. Tap a topic or search anything.</p>
+      <div class="chips">${CONFIG.tryChips.map(t=>`<button class="chip" data-try="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="stats"><span>${DATA.length} topics</span><span>${total} articles</span><span>${saved.size} saved</span></div>
+    </section>
+    <h3 class="sec">🎁 Random drop <small>one fresh fact every time</small></h3>
+    <div class="grid" style="margin-top:0">${cardHTML(pick(ALL),0)}</div>
+    <h3 class="sec">🗂️ Pick a topic</h3>
+    <div class="tiles">${DATA.map(c=>`
+      <button class="tile" data-cat="${c.id}" style="--c:${c.color}"><span class="e">${c.emoji}</span><b>${esc(c.name)}</b><small>${esc(c.blurb.split(". ")[0])}</small></button>`).join("")}
+    </div>`);
+}
+ 
+function openCategory(id){
+  const c=CATS[id]; if(!c) return;
+  state={view:"cat",cat:id,q:""};
+  setFx(c.fx,c.icons); renderNav();
+  setView(`
+    <div class="crumb"><button data-go="home">Home</button> / ${esc(c.name)}</div>
+    <section class="banner" style="--c:${c.color}">
+      <div class="e">${c.emoji}</div>
+      <div><h1>${esc(c.name)}</h1><p>${esc(c.blurb)}</p></div>
+    </section>
+    <div class="grid" style="--c:${c.color}">${c.items.map((_,i)=>cardHTML(BYID[id+":"+i],i)).join("")}</div>`);
+  burst(innerWidth*.6,200,c.icons);
+}
+ 
+function cardHTML(a,i,toks=[]){
+  const c=a.cat;
+  return `<article class="card" tabindex="0" data-open="${a.id}" style="--c:${c.color};animation-delay:${Math.min(i,14)*45}ms">
+    <button class="star ${saved.has(a.id)?'on':''}" data-save="${a.id}" aria-label="Save article">${saved.has(a.id)?'⭐':'☆'}</button>
+    <h4><i>${c.emoji}</i><span>${hl(a.title,toks)}</span></h4>
+    <p>${hl(a.text,toks)}</p>
+    <span class="tag">${esc(c.name)}</span>
+  </article>`;
+}
+function hl(s,toks){
+  let out=esc(s); if(!toks.length) return out;
+  const re=new RegExp("("+toks.map(t=>reEsc(esc(t))).join("|")+")","gi");
+  return out.replace(re,"<mark>$1</mark>");
+}
+ 
+/* event delegation for cards / chips / tiles */
+view.addEventListener("click",e=>{
+  const sv=e.target.closest("[data-save]"); if(sv){ e.stopPropagation(); toggleSave(sv.dataset.save); return; }
+  const op=e.target.closest("[data-open]"); if(op){ openItem(op.dataset.open); return; }
+  const ct=e.target.closest("[data-cat]"); if(ct){ openCategory(ct.dataset.cat); return; }
+  const tr=e.target.closest("[data-try]"); if(tr){ $("#q").value=tr.dataset.try; runSearch(tr.dataset.try); return; }
+  const g=e.target.closest("[data-go]"); if(g){ g.dataset.go==="home"?goHome():null; }
+  const lv=e.target.closest("[data-live]"); if(lv){ runSearch(lv.dataset.live,true); }
+});
+view.addEventListener("keydown",e=>{ if(e.key==="Enter"){ const op=e.target.closest("[data-open]"); if(op) openItem(op.dataset.open); }});
+ 
+/* ---------- saved ---------- */
+function toggleSave(id){
+  saved.has(id)?saved.delete(id):saved.add(id);
+  store.set("vibe-saved",[...saved]); updateSavedN();
+  $$(`[data-save="${id}"]`).forEach(b=>{ b.classList.toggle("on",saved.has(id)); b.textContent=saved.has(id)?"⭐":"☆"; });
+  toast(saved.has(id)?"Saved ⭐":"Removed");
+}
+function updateSavedN(){ const n=$("#savedN"); n.textContent=saved.size; n.hidden=!saved.size; }
+function showSaved(){
+  state={view:"saved",cat:null,q:""}; setFx("float",["⭐","✨","💛"]); renderNav();
+  const list=[...saved].map(id=>BYID[id]).filter(Boolean);
+  setView(`<div class="crumb"><button data-go="home">Home</button> / Saved</div>
+    <h3 class="sec" style="margin-top:0">⭐ Your saved articles</h3>
+    ${list.length?`<div class="grid">${list.map((a,i)=>cardHTML(a,i)).join("")}</div>`:`<div class="empty">Nothing saved yet 🫥<br><small style="font-family:var(--body)">Tap the ☆ on any article.</small></div>`}`);
+}
+ 
+/* ---------- article modal ---------- */
+let curId=null;
+function openItem(id){
+  const a=BYID[id]; if(!a) return; curId=id; const c=a.cat;
+  const m=$("#modal");
+  m.innerHTML=`<div class="sheet" style="--c:${c.color}">
+    <button class="close" aria-label="Close" data-close>✕</button>
+    <div class="top"><div class="e">${c.emoji}</div><div><small>${esc(c.name)}</small><h2>${esc(a.title)}</h2></div></div>
+    <div class="bd">
+      <p>${esc(a.text)}</p>
+      <div class="row">
+        <button class="btn pri" data-deeper>🌐 Go deeper (live)</button>
+        <button class="btn" data-msave>${saved.has(id)?"⭐ Saved":"☆ Save"}</button>
+        <button class="btn" data-next>🎲 Next in topic</button>
+        <button class="btn" data-copy>📋 Copy</button>
+      </div>
+      <div class="live" id="live"></div>
+      <p class="note">Short explainers are written for quick learning. “Go deeper” pulls live summaries from Wikipedia.</p>
+    </div></div>`;
+  m.classList.add("open");
+  setFx(c.fx,c.icons);
+  burst(innerWidth/2,innerHeight/2,c.icons);
+  $(".close",m).focus();
+}
+function closeModal(){ $("#modal").classList.remove("open"); curId=null; }
+$("#modal").addEventListener("click",e=>{
+  if(e.target.id==="modal"||e.target.closest("[data-close]")) return closeModal();
+  const a=BYID[curId]; if(!a) return;
+  if(e.target.closest("[data-msave]")){ toggleSave(curId); e.target.closest("[data-msave]").textContent=saved.has(curId)?"⭐ Saved":"☆ Save"; }
+  if(e.target.closest("[data-next]")){ const sib=ALL.filter(x=>x.cat.id===a.cat.id&&x.id!==a.id); openItem(pick(sib).id); }
+  if(e.target.closest("[data-copy]")){ try{ navigator.clipboard.writeText(`${a.title}: ${a.text}`); toast("Copied 📋"); }catch(_){ toast("Copy not available"); } }
+  if(e.target.closest("[data-deeper]")){ loadLive(a.wiki,$("#live")); }
+});
+ 
+/* ---------- live "whole world" lookup (Wikipedia API) ---------- */
+async function wikiLookup(query){
+  const base=`https://${CONFIG.wikiLang}.wikipedia.org`;
+  const r=await fetch(`${base}/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=${CONFIG.wikiResults}&namespace=0&format=json&origin=*`);
+  const j=await r.json(); const titles=j[1]||[];
+  const sums=await Promise.all(titles.map(t=>
+    fetch(`${base}/api/rest_v1/page/summary/${encodeURIComponent(t)}`).then(x=>x.json()).catch(()=>null)));
+  return sums.filter(s=>s&&s.extract);
+}
+async function loadLive(query,box){
+  box.innerHTML=`<div class="note"><span class="loading">🌀</span> Asking the internet about “${esc(query)}”…</div>`;
+  try{
+    const res=await wikiLookup(query);
+    if(!res.length){ box.innerHTML=`<div class="note">No live results found. Try different words.</div>`; return; }
+    box.innerHTML=res.map(s=>`<div class="lcard">
+      ${s.thumbnail?`<img src="${esc(s.thumbnail.source)}" alt="" loading="lazy">`:""}
+      <div><b>${esc(s.title)}</b>${s.description?` <small style="color:var(--muted)">· ${esc(s.description)}</small>`:""}
+      <p>${esc(s.extract)}</p>
+      <a href="${esc(s.content_urls?.desktop?.page||'#')}" target="_blank" rel="noopener">Read on Wikipedia ↗</a></div></div>`).join("")
+      + `<p class="note">Live text from Wikipedia (CC BY-SA).</p>`;
+  }catch(err){
+    box.innerHTML=`<div class="note">😵 Couldn’t reach the live service. This feature needs an internet connection and a page opened in your browser (not a restricted preview).</div>`;
+  }
+}
+ 
+/* ---------- SEARCH ---------- */
+function lev(a,b){
+  if(Math.abs(a.length-b.length)>2) return 9;
+  const d=Array.from({length:a.length+1},(_,i)=>[i]);
+  for(let j=1;j<=b.length;j++) d[0][j]=j;
+  for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++)
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return d[a.length][b.length];
+}
+const WORDS = ALL.map(a => (a.title+" "+a.cat.name+" "+a.text).toLowerCase().match(/[a-z0-9]+/g)||[]);
+function fuzzyHit(k,idx){
+  if(k.length<4) return false;
+  const lim=k.length>6?2:1;
+  return WORDS[idx].some(w=>Math.abs(w.length-k.length)<=lim&&lev(k,w)<=lim);
+}
+function tokens(q){ return q.toLowerCase().split(/[^a-z0-9\u0900-\u097F]+/i).filter(Boolean); }
+function search(q){
+  const toks=tokens(q); if(!toks.length) return [];
+  const out=[];
+  ALL.forEach((a,idx)=>{
+    const t=a.title.toLowerCase(), x=a.text.toLowerCase(), c=a.cat.name.toLowerCase();
+    let s=0, hit=0;
+    for(const k of toks){
+      let h=0;
+      if(t===k) h+=12; else if(t.startsWith(k)) h+=8; else if(t.includes(k)) h+=6;
+      if(c.includes(k)) h+=2;
+      if(x.includes(k)) h+=3;
+      if(!h&&fuzzyHit(k,idx)) h+=1.5;
+      if(h){hit++; s+=h;}
+    }
+    if(hit===toks.length) s+=4;               // matched every word → bonus
+    if(hit>0&&(hit===toks.length||toks.length===1||hit>=2)) out.push({a,s});
+  });
+  return out.sort((p,q)=>q.s-p.s);
+}
+function catMatches(q){
+  const toks=tokens(q); if(!toks.length) return [];
+  return DATA.filter(c=>toks.every(k=>c.name.toLowerCase().includes(k)));
+}
+ 
+/* suggestions dropdown */
+const input=$("#q"), sugg=$("#sugg"); let selIdx=-1, suggItems=[];
+function renderSugg(){
+  const q=input.value.trim(); selIdx=-1;
+  if(!q){ sugg.classList.remove("open"); return; }
+  const toks=tokens(q);
+  const cats=catMatches(q).slice(0,2);
+  const res=search(q).slice(0,CONFIG.suggestionLimit);
+  suggItems=[
+    ...cats.map(c=>({type:"cat",id:c.id,e:c.emoji,t:c.name,s:"Topic · "+c.items.length+" articles"})),
+    ...res.map(r=>({type:"item",id:r.a.id,e:r.a.cat.emoji,t:r.a.title,s:r.a.cat.name})),
+    ...(CONFIG.liveSearch?[{type:"live",id:q,e:"🌍",t:`Search the world for “${q}”`,s:"Live results from Wikipedia"}]:[])
+  ];
+  sugg.innerHTML=suggItems.map((s,i)=>`<button role="option" data-i="${i}"><span class="e">${s.e}</span><span>${hl(s.t,toks)}<small>${esc(s.s)}</small></span></button>`).join("");
+  sugg.classList.add("open");
+}
+function pickSugg(i){
+  const s=suggItems[i]; if(!s) return;
+  sugg.classList.remove("open");
+  if(s.type==="cat") openCategory(s.id);
+  else if(s.type==="item"){ openCategory(BYID[s.id].cat.id); openItem(s.id); }
+  else runSearch(s.id,true);
+}
+input.addEventListener("input",renderSugg);
+input.addEventListener("focus",renderSugg);
+input.addEventListener("keydown",e=>{
+  const btns=$$("#sugg button");
+  if(e.key==="ArrowDown"){ e.preventDefault(); selIdx=Math.min(btns.length-1,selIdx+1); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); selIdx=Math.max(-1,selIdx-1); }
+  else if(e.key==="Enter"){ e.preventDefault(); if(selIdx>=0) pickSugg(selIdx); else if(input.value.trim()) runSearch(input.value.trim()); return; }
+  else if(e.key==="Escape"){ sugg.classList.remove("open"); input.blur(); return; }
+  else return;
+  btns.forEach((b,i)=>b.classList.toggle("sel",i===selIdx));
+});
+sugg.addEventListener("mousedown",e=>{ const b=e.target.closest("button"); if(b){ e.preventDefault(); pickSugg(+b.dataset.i); } });
+document.addEventListener("click",e=>{ if(!e.target.closest(".search")) sugg.classList.remove("open"); });
+ 
+function runSearch(q){
+  q=q.trim(); if(!q) return;
+  sugg.classList.remove("open"); input.value=q;
+  state={view:"search",cat:null,q}; renderNav();
+  setFx("twinkle",["🔎","✨","💡","❓"]);
+  const toks=tokens(q), res=search(q), cats=catMatches(q);
+  setView(`
+    <div class="crumb"><button data-go="home">Home</button> / Search</div>
+    <h3 class="sec" style="margin-top:0">🔎 “${esc(q)}” <small>${res.length} result${res.length===1?"":"s"} in Vibepedia</small></h3>
+    ${cats.length?`<div class="chips" style="margin:0 0 14px">${cats.map(c=>`<button class="chip" data-cat="${c.id}">${c.emoji} ${esc(c.name)}</button>`).join("")}</div>`:""}
+    ${res.length?`<div class="grid" style="margin-top:0">${res.slice(0,30).map((r,i)=>cardHTML(r.a,i,toks)).join("")}</div>`
+      :`<div class="empty">Hmm, nothing in our library 🫥<br><small style="font-family:var(--body)">Check the live results below, or try another word.</small></div>`}
+    ${CONFIG.liveSearch?`<h3 class="sec">🌍 Live from the world <small>Wikipedia</small></h3><div class="live" id="liveRes"></div>`:""}`);
+  if(CONFIG.liveSearch) loadLive(q,$("#liveRes"));
+}
+ 
+/* ---------- header buttons & keys ---------- */
+$("#logo").addEventListener("click",goHome);
+$("#rand").addEventListener("click",()=>{ const a=pick(ALL); openCategory(a.cat.id); openItem(a.id); });
+$("#saved").addEventListener("click",showSaved);
+$("#replay").addEventListener("click",playIntro);
+$("#skip").addEventListener("click",closeIntro);
+$("#enter").addEventListener("click",closeIntro);
+$("#theme").addEventListener("click",()=>{
+  const dark=(document.documentElement.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))==="dark";
+  const next=dark?"light":"dark"; document.documentElement.dataset.theme=next; store.set("vibe-theme",next);
+  $("#theme").textContent=next==="dark"?"☀️":"🌙";
+});
+addEventListener("keydown",e=>{
+  if(e.key==="/"&&document.activeElement!==input&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); input.focus(); }
+  if(e.key==="Escape"){ closeModal(); }
+});
+ 
+/* ---------- boot ---------- */
+(function init(){
+  document.title=CONFIG.siteName+" – the whole world, explained";
+  $("#siteName").textContent=CONFIG.siteName;
+  const th=store.get("vibe-theme",null);
+  if(th){ document.documentElement.dataset.theme=th; $("#theme").textContent=th==="dark"?"☀️":"🌙"; }
+  updateSavedN(); goHome();
+  if(CONFIG.showIntro) playIntro(); else $("#intro").style.display="none";
+})();
+</script>
+</body>
+</html>
